@@ -30,8 +30,10 @@
 
 #include "catalog/o_tables.h"
 #include "catalog/sys_trees.h"
-#include "miscadmin.h"
 #include "recovery/recovery.h"
+
+#include "catalog/pg_database.h"
+#include "miscadmin.h"
 #include "utils/catcache.h"
 #include "utils/pg_locale.h"
 #include "utils/resowner_private.h"
@@ -365,7 +367,7 @@ o_sys_cache_set_datoid_lsn(XLogRecPtr *cur_lsn, Oid *datoid)
 
 	if (datoid)
 	{
-		if (OidIsValid(MyDatabaseId))
+		if (OidIsValid(MyDatabaseId) && MyDatabaseId != Template1DbOid)
 		{
 			*datoid = MyDatabaseId;
 		}

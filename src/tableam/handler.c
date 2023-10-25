@@ -156,7 +156,8 @@ orioledb_index_fetch_tuple(struct IndexFetchTableData *scan,
 
 static TupleFetchCallbackResult
 fetch_row_version_callback(OTuple tuple, OXid tupOxid, CommitSeqNo csn,
-						   void *arg, TupleFetchCallbackCheckType check_type)
+						   bool deleted, void *arg,
+						   TupleFetchCallbackCheckType check_type)
 {
 	uint32		version = *((uint32 *) arg);
 

@@ -268,17 +268,12 @@ static void replay_container(Pointer ptr, Pointer endPtr,
 
 static void worker_send_modify(int worker_id, BTreeDescr *desc, uint16 recType,
 							   OTuple tuple, int tuple_len);
-static void workers_send_oxid_finish(XLogRecPtr ptr, bool commit);
 static void workers_send_savepoint(SubTransactionId parentSubId);
 static void workers_send_rollback_to_savepoint(XLogRecPtr ptr,
 											   SubTransactionId parentSubId);
-static void workers_synchronize(XLogRecPtr csn, bool send_synchronize);
 static void workers_notify_toast_consistent(void);
 static void worker_wait_shutdown(RecoveryWorkerState *worker);
 
-static inline bool apply_sys_tree_modify_record(int sys_tree_num, uint16 type,
-												OTuple tup,
-												OXid oxid, CommitSeqNo csn);
 static inline void spread_idx_modify(BTreeDescr *desc, uint16 recType,
 									 OTuple rec);
 
@@ -604,6 +599,7 @@ o_recovery_start_hook(void)
 
 	if (checkpoint_state->lastCheckpointNumber > 0)
 		apply_xids_branches();
+	replay_rewind(checkpoint_state->lastCheckpointNumber, recovery_single);
 }
 
 #if PG_VERSION_NUM >= 150000
@@ -1089,8 +1085,6 @@ recovery_switch_to_oxid(OXid oxid, int worker_id)
 			cur_state->in_finished_list = false;
 			cur_state->in_retain_heap = false;
 			dlist_init(&cur_state->checkpoint_undo_stacks);
-			oxid_needs_wal_flush = false;
-			reset_cur_undo_locations();
 			curRetainUndoLocation = InvalidUndoLocation;
 			if (worker_id < 0)
 				pairingheap_add(xmin_queue, &cur_state->xmin_ph_node);
@@ -1999,7 +1993,7 @@ recovery_cleanup_old_files(uint32 chkp_num, bool before_recovery)
 	closedir(dir);
 }
 
-static ORelOids *
+ORelOids *
 o_indices_get_oids(Pointer tuple, ORelOids *tableOids)
 {
 	OIndexChunk chunk;
@@ -2254,6 +2248,7 @@ replay_container(Pointer startPtr, Pointer endPtr,
 		{
 			memcpy(&oxid, ptr, sizeof(oxid));
 			ptr += sizeof(oxid);
+			ptr += sizeof(XLogRecPtr);
 
 			advance_oxids(oxid);
 			recovery_switch_to_oxid(oxid, -1);
@@ -2424,6 +2419,19 @@ replay_container(Pointer startPtr, Pointer endPtr,
 			}
 			recovery_rollback_to_savepoint(parentSubid, -1);
 		}
+		else if (rec_type == WAL_REC_SYNC_WORKERS)
+		{
+			int			i;
+
+			for (i = 0; i < recovery_pool_size_guc; i++)
+			{
+				if (EnableHotStandby)
+				{
+					/* we need to apply recovery records as fast as we can */
+					worker_queue_flush(i);
+				}
+			}
+		}
 		else
 		{
 			OFixedTuple tuple;
@@ -2438,7 +2446,6 @@ replay_container(Pointer startPtr, Pointer endPtr,
 
 			memcpy(tuple.fixedData, ptr, length);
 			tuple.tuple.data = tuple.fixedData;
-
 			type = recovery_msg_from_wal_record(rec_type);
 
 			Assert(oxid != InvalidOXid);
@@ -2833,7 +2840,7 @@ workers_send_rollback_to_savepoint(XLogRecPtr ptr,
 /*
  * Sends commit or rollback message to workers with active the oxid in the pool.
  */
-static void
+void
 workers_send_oxid_finish(XLogRecPtr ptr, bool commit)
 {
 	RecoveryWorkerState *state;
@@ -2871,7 +2878,7 @@ workers_send_oxid_finish(XLogRecPtr ptr, bool commit)
  * used by workers and synchronize only with needed workers. But we assume that
  * it does not happen too often and we can use this simple solution.
  */
-static void
+void
 workers_synchronize(XLogRecPtr ptr, bool send_synchronize)
 {
 	int			i;
@@ -2967,7 +2974,7 @@ worker_queue_flush(int worker_id)
  * Worker can not fetch table description because another worker does not
  * commit transaction yet.
  */
-static bool
+bool
 apply_sys_tree_modify_record(int sys_tree_num, uint16 type, OTuple tup,
 							 OXid oxid, CommitSeqNo csn)
 {

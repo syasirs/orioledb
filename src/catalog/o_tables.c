@@ -207,7 +207,8 @@ oTablesGetTupleDataSize(OTuple tuple, void *arg)
 }
 
 static TupleFetchCallbackResult
-oTablesVersionCallback(OTuple tuple, OXid tupOxid, CommitSeqNo csn, void *arg,
+oTablesVersionCallback(OTuple tuple, OXid tupOxid, CommitSeqNo csn,
+					   bool deleted, void *arg,
 					   TupleFetchCallbackCheckType check_type)
 {
 	OTableChunkKey *tupleKey = (OTableChunkKey *) tuple.data;
@@ -1396,6 +1397,8 @@ orioledb_table_oids(PG_FUNCTION_ARGS)
 	Tuplestorestate *tupstore;
 	MemoryContext per_query_ctx;
 	MemoryContext oldcontext;
+	CommitSeqNo csn;
+	OXid		oxid;
 
 	per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
 	oldcontext = MemoryContextSwitchTo(per_query_ctx);
@@ -1411,8 +1414,10 @@ orioledb_table_oids(PG_FUNCTION_ARGS)
 
 	MemoryContextSwitchTo(oldcontext);
 
+	fill_current_oxid_csn(&oxid, &csn);
+
 	o_tables_foreach_oids(o_table_oids_array_callback,
-						  COMMITSEQNO_NON_DELETED, rsinfo);
+						  csn, rsinfo);
 
 	tuplestore_donestoring(tupstore);
 

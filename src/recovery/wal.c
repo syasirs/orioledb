@@ -28,6 +28,7 @@ static char local_wal_buffer[LOCAL_WAL_BUFFER_SIZE];
 static int	local_wal_buffer_offset;
 static ORelOids local_oids;
 static OIndexType local_type;
+static XLogRecPtr	cur_trx_start = InvalidXLogRecPtr;
 
 static void add_finish_wal_record(uint8 rec_type, OXid xmin);
 static void add_joint_commit_wal_record(TransactionId xid, OXid xmin);
@@ -35,6 +36,8 @@ static void add_xid_wal_record(OXid oxid);
 static void add_rel_wal_record(ORelOids oids, OIndexType type);
 static void flush_local_wal_if_needed(int required_length);
 static inline void add_local_modify(uint8 record_type, OTuple record, OffsetNumber length);
+
+PG_FUNCTION_INFO_V1(orioledb_flush_local_wal);
 
 void
 add_modify_wal_record(uint8 rec_type, BTreeDescr *desc,
@@ -66,6 +69,8 @@ add_modify_wal_record(uint8 rec_type, BTreeDescr *desc,
 
 	flush_local_wal_if_needed(required_length);
 	Assert(local_wal_buffer_offset + required_length <= LOCAL_WAL_BUFFER_SIZE);
+	if (XLogRecPtrIsInvalid(cur_trx_start))
+		cur_trx_start = GetXLogInsertRecPtr();
 
 	if (local_wal_buffer_offset == 0)
 	{
@@ -117,6 +122,7 @@ wal_commit(OXid oxid)
 		add_xid_wal_record(oxid);
 	add_finish_wal_record(WAL_REC_COMMIT, pg_atomic_read_u64(&xid_meta->runXmin));
 	wait_pos = flush_local_wal(true);
+	cur_trx_start = InvalidXLogRecPtr;
 
 	if (synchronous_commit > SYNCHRONOUS_COMMIT_OFF ||
 		oxid_needs_wal_flush)
@@ -162,6 +168,7 @@ wal_rollback(OXid oxid)
 		add_xid_wal_record(oxid);
 	add_finish_wal_record(WAL_REC_ROLLBACK, pg_atomic_read_u64(&xid_meta->runXmin));
 	wait_pos = flush_local_wal(false);
+	cur_trx_start = InvalidXLogRecPtr;
 	if (synchronous_commit > SYNCHRONOUS_COMMIT_OFF)
 		XLogFlush(wait_pos);
 }
@@ -229,6 +236,7 @@ add_xid_wal_record(OXid oxid)
 	rec = (WALRecXid *) (&local_wal_buffer[local_wal_buffer_offset]);
 	rec->recType = WAL_REC_XID;
 	memcpy(rec->oxid, &oxid, sizeof(OXid));
+	memcpy(rec->trx_start, &cur_trx_start, sizeof(XLogRecPtr));
 
 	local_wal_buffer_offset += sizeof(*rec);
 }
@@ -507,4 +515,14 @@ add_truncate_wal_record(ORelOids oids)
 	local_oids.datoid = InvalidOid;
 	local_oids.reloid = InvalidOid;
 	local_oids.relnode = InvalidOid;
+}
+
+Datum
+orioledb_flush_local_wal(PG_FUNCTION_ARGS)
+{
+	XLogRecPtr pos;
+
+	pos = flush_local_wal(false);
+	XLogFlush(pos);
+	PG_RETURN_VOID();
 }

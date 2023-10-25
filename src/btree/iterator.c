@@ -273,7 +273,8 @@ o_find_tuple_version(BTreeDescr *desc, Page p, BTreePageItemLocator *loc,
 				OTupleFetchCallbackVersionCheck :
 				OTupleFetchCallbackKeyCheck;
 
-			cbResult = cb(curTuple, tupOxid, csn, arg, check_type);
+			cbResult = cb(curTuple, tupOxid, csn, tupHdr.deleted,
+						  arg, check_type);
 
 			if (cbResult == OTupleFetchMatch)
 				break;

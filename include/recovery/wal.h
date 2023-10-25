@@ -30,6 +30,7 @@
 #define WAL_REC_ROLLBACK_TO_SAVEPOINT (11)
 #define WAL_REC_JOINT_COMMIT (12)
 #define WAL_REC_TRUNCATE	(13)
+#define WAL_REC_SYNC_WORKERS (14)
 
 /* Constants for commitInProgressXlogLocation */
 #define OWalTmpCommitPos			(0)
@@ -44,6 +45,7 @@ typedef struct
 {
 	uint8		recType;
 	uint8		oxid[sizeof(OXid)];
+	uint8		trx_start[sizeof(XLogRecPtr)];
 } WALRecXid;
 
 typedef struct
@@ -89,6 +91,11 @@ typedef struct
 	uint8		xid[sizeof(TransactionId)];
 	uint8		xmin[sizeof(OXid)];
 } WALRecJointCommit;
+
+typedef struct
+{
+	uint8		recType;
+} WALRecSyncWorkers;
 
 typedef struct
 {

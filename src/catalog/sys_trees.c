@@ -873,7 +873,7 @@ o_table_chunk_key_print(BTreeDescr *desc, StringInfo buf, OTuple tup, Pointer ar
 	OTableChunkKey *key = (OTableChunkKey *) tup.data;
 
 	appendStringInfo(buf, "((%u, %u, %u), %u, %u)", key->oids.datoid,
-					 key->oids.relnode, key->oids.reloid, key->offset,
+					 key->oids.reloid, key->oids.relnode, key->offset,
 					 key->version);
 }
 
@@ -884,8 +884,8 @@ o_table_chunk_tup_print(BTreeDescr *desc, StringInfo buf, OTuple tup, Pointer ar
 
 	appendStringInfo(buf, "(((%u, %u, %u), %u, %u), %u)",
 					 chunk->key.oids.datoid,
-					 chunk->key.oids.relnode,
 					 chunk->key.oids.reloid,
+					 chunk->key.oids.relnode,
 					 chunk->key.offset,
 					 chunk->key.version,
 					 chunk->dataLength);
@@ -974,7 +974,7 @@ o_index_chunk_key_print(BTreeDescr *desc, StringInfo buf, OTuple tup, Pointer ar
 {
 	OIndexChunkKey *key = (OIndexChunkKey *) tup.data;
 
-	appendStringInfo(buf, "(%d, (%u, %u, %u), %u)", (int) key->type, key->oids.datoid, key->oids.relnode, key->oids.reloid, key->offset);
+	appendStringInfo(buf, "(%d, (%u, %u, %u), %u)", (int) key->type, key->oids.datoid, key->oids.reloid, key->oids.relnode, key->offset);
 }
 
 static void
@@ -985,8 +985,8 @@ o_index_chunk_tup_print(BTreeDescr *desc, StringInfo buf, OTuple tup, Pointer ar
 	appendStringInfo(buf, "((%d, (%u, %u, %u), %u), %u)",
 					 (int) chunk->key.type,
 					 chunk->key.oids.datoid,
-					 chunk->key.oids.relnode,
 					 chunk->key.oids.reloid,
+					 chunk->key.oids.relnode,
 					 chunk->key.offset,
 					 chunk->dataLength);
 }

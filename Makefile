@@ -46,6 +46,7 @@ OBJS = src/btree/btree.o \
 	   src/checkpoint/checkpoint.o \
 	   src/orioledb.o \
 	   src/recovery/recovery.o \
+	   src/recovery/rewind.o \
 	   src/recovery/wal.o \
 	   src/recovery/worker.o \
 	   src/s3/archive.o \
@@ -171,7 +172,8 @@ TESTGRESCHECKS_PART_2 = t/checkpoint_concurrent_test.py \
 						t/s3_test.py \
 						t/schema_test.py \
 						t/trigger_test.py \
-						t/vacuum_test.py
+						t/vacuum_test.py \
+						t/rewind_test.py
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

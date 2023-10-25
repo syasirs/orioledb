@@ -517,7 +517,7 @@ o_sys_cache_search(OSysCache *sys_cache, int nkeys, OSysCacheKey *key)
 
 static TupleFetchCallbackResult
 o_sys_cache_get_by_lsn_callback(OTuple tuple, OXid tupOxid, CommitSeqNo csn,
-								void *arg,
+								bool deleted, void *arg,
 								TupleFetchCallbackCheckType check_type)
 {
 	OSysCacheToastChunkKey *tuple_key = (OSysCacheToastChunkKey *) tuple.data;
