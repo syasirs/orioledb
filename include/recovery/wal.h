@@ -13,6 +13,10 @@
 #ifndef __WAL_H__
 #define __WAL_H__
 
+#include "orioledb_types.h"
+#include "access/xlogdefs.h"
+#include "storage/off.h"
+
 /*
  * Data sturctures for transactions in-progress recording.
  */
@@ -30,7 +34,6 @@
 #define WAL_REC_ROLLBACK_TO_SAVEPOINT (11)
 #define WAL_REC_JOINT_COMMIT (12)
 #define WAL_REC_TRUNCATE	(13)
-#define WAL_REC_SYNC_WORKERS (14)
 
 /* Constants for commitInProgressXlogLocation */
 #define OWalTmpCommitPos			(0)
@@ -95,11 +98,6 @@ typedef struct
 typedef struct
 {
 	uint8		recType;
-} WALRecSyncWorkers;
-
-typedef struct
-{
-	uint8		recType;
 	uint8		xmin[sizeof(OXid)];
 } WALRecFinish;
 
@@ -133,5 +131,12 @@ extern void o_wal_update(BTreeDescr *desc, OTuple tuple);
 extern void o_wal_delete(BTreeDescr *desc, OTuple tuple);
 extern void o_wal_delete_key(BTreeDescr *desc, OTuple key);
 extern void add_truncate_wal_record(ORelOids oids);
+
+/* recovery/recovery_internal.c */
+typedef void (*wal_iterate_callback_type) (uint8 rec_type, Pointer ptr,
+										   XLogRecPtr xlogPtr, void *arg);
+extern void wal_iterate(Pointer startPtr, Pointer endPtr,
+						XLogRecPtr xlogRecPtr,
+						wal_iterate_callback_type record_callback, void *arg);
 
 #endif							/* __WAL_H__ */

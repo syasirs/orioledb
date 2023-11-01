@@ -1130,7 +1130,7 @@ describe_index(TupleDesc tupdesc, ORelOids oids, OIndexType type)
 	Datum		values[2];
 	bool		isnull[2] = {false};
 	OXid		oxid;
-	CommitSeqNo	csn;
+	CommitSeqNo csn;
 
 	fill_current_oxid_csn(&oxid, &csn);
 	index = o_indices_get_csn(oids, type, csn);

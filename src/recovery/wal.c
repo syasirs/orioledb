@@ -28,7 +28,7 @@ static char local_wal_buffer[LOCAL_WAL_BUFFER_SIZE];
 static int	local_wal_buffer_offset;
 static ORelOids local_oids;
 static OIndexType local_type;
-static XLogRecPtr	cur_trx_start = InvalidXLogRecPtr;
+static XLogRecPtr cur_trx_start = InvalidXLogRecPtr;
 
 static void add_finish_wal_record(uint8 rec_type, OXid xmin);
 static void add_joint_commit_wal_record(TransactionId xid, OXid xmin);
@@ -520,7 +520,7 @@ add_truncate_wal_record(ORelOids oids)
 Datum
 orioledb_flush_local_wal(PG_FUNCTION_ARGS)
 {
-	XLogRecPtr pos;
+	XLogRecPtr	pos;
 
 	pos = flush_local_wal(false);
 	XLogFlush(pos);

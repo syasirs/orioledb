@@ -29,9 +29,9 @@ typedef enum
 	OTupleFetchCallbackKeyCheck
 } TupleFetchCallbackCheckType;
 
-typedef TupleFetchCallbackResult (*TupleFetchCallback)(
-	OTuple tuple, OXid tupOxid, CommitSeqNo csn, bool deleted, void *arg,
-	TupleFetchCallbackCheckType check_type);
+typedef TupleFetchCallbackResult (*TupleFetchCallback) (
+														OTuple tuple, OXid tupOxid, CommitSeqNo csn, bool deleted, void *arg,
+														TupleFetchCallbackCheckType check_type);
 
 extern OTuple o_btree_find_tuple_by_key(BTreeDescr *desc, void *key,
 										BTreeKeyType kind,

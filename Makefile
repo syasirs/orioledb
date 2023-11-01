@@ -5,6 +5,7 @@ EXTENSION = orioledb
 DATA = orioledb--1.0.sql orioledb--1.0--1.1.sql
 PGFILEDESC = "orioledb - orioledb transactional storage engine via TableAm"
 SHLIB_LINK += -lzstd -lcurl -lssl -lcrypto
+MODULES = pg_rewind_orioledb
 
 EXTRA_CLEAN = include/utils/stopevents_defs.h \
 			  include/utils/stopevents_data.h
@@ -46,6 +47,7 @@ OBJS = src/btree/btree.o \
 	   src/checkpoint/checkpoint.o \
 	   src/orioledb.o \
 	   src/recovery/recovery.o \
+	   src/recovery/recovery_internal.o \
 	   src/recovery/rewind.o \
 	   src/recovery/wal.o \
 	   src/recovery/worker.o \
@@ -183,12 +185,12 @@ include $(PGXS)
 
 ifeq ($(shell expr $(MAJORVERSION) \>= 14), 1)
   REGRESSCHECKS += toast_column_compress
-endif
+endif # MAJORVERSION >= 14
 
 ifeq ($(shell expr $(MAJORVERSION) \>= 15), 1)
   TESTGRESCHECKS_PART_2 += t/merge_into_test.py
   ISOLATIONCHECKS += isol_merge
-endif
+endif # MAJORVERSION >= 15
 
 PG_REGRESS_ARGS=--no-locale --encoding=UTF8
 
@@ -211,7 +213,7 @@ $(TESTGRESCHECKS_PART_1) $(TESTGRESCHECKS_PART_2): | install
 installcheck: regresscheck isolationcheck testgrescheck
 	echo "All checks are successful!"
 
-else
+else # not USE_PGXS
 subdir = contrib/orioledb
 top_builddir = ../..
 override PG_CPPFLAGS += -I$(top_srcdir)/$(subdir)/include
@@ -235,7 +237,7 @@ $(TESTGRESCHECKS_PART_1) $(TESTGRESCHECKS_PART_2): | submake-orioledb temp-insta
 
 check: regresscheck isolationcheck testgrescheck
 	echo "All checks are successful!"
-endif
+endif # USE_PGXS
 
 COMMIT_HASH = $(shell git rev-parse HEAD)
 override CFLAGS_SL += -DCOMMIT_HASH=$(COMMIT_HASH) -Wno-error=deprecated-declarations
@@ -246,9 +248,9 @@ override with_temp_install += PGCTLTIMEOUT=1200 \
 	--suppressions=valgrind.supp --time-stamp=yes \
 	--log-file=pid-%p.log --trace-children=yes \
 	--trace-children-skip=*/initdb
-else
+else # not VALGRIND
 override with_temp_install += PGCTLTIMEOUT=900
-endif
+endif # VALGRIND
 
 include/utils/stopevents_data.h: include/utils/stopevents_defs.h
 
@@ -258,7 +260,7 @@ include/utils/stopevents_defs.h: stopevents.txt stopevents_gen.py
 
 ifndef ORIOLEDB_PATCHSET_VERSION
 ORIOLEDB_PATCHSET_VERSION=1
-endif
+endif # ORIOLEDB_PATCHSET_VERSION
 CUR_ORIOLEDB_PATCHSET_VERSION := $(shell grep '^$(MAJORVERSION):' .pgtags | cut -d'_' -f2)
 
 check_patchset_version:
@@ -272,6 +274,10 @@ check_patchset_version:
 	fi
 
 $(OBJS): include/utils/stopevents_defs.h check_patchset_version
+
+pg_rewind_orioledb.o: CPPFLAGS += -I$(includedir)
+pg_rewind_orioledb.so: pg_rewind_orioledb.o src/recovery/recovery_internal.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) $(LDFLAGS_SL) -shared -o $@
 
 submake-regress:
 	$(MAKE) -C $(top_builddir)/src/test/regress all

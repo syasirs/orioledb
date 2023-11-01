@@ -25,7 +25,6 @@
 
 #define BTREE_NUM_META_LWLOCKS	(128)
 
-typedef struct BTreeDescr BTreeDescr;
 typedef struct BTreeIterator BTreeIterator;
 typedef struct CheckpointFileHeader CheckpointFileHeader;
 
@@ -58,23 +57,6 @@ typedef int (*OBTreeKeyCmp) (BTreeDescr *descr,
 							 void *p1, BTreeKeyType k1,
 							 void *p2, BTreeKeyType k2);
 
-typedef struct
-{
-	OInMemoryBlkno rootPageBlkno;
-	uint32		rootPageChangeCount;
-	OInMemoryBlkno metaPageBlkno;
-} BTreeRootInfo;
-
-typedef enum
-{
-	/* just in memory BTree, no eviction and no checkpoint support */
-	BTreeStorageInMemory,
-	/* no checkpoint support, but pages can be evicted into a disk */
-	BTreeStorageTemporary,
-	/* checkpoint and eviction for pages support */
-	BTreeStoragePersistence
-} BTreeStorageType;
-
 typedef enum BTreeOperationType
 {
 	BTreeOperationInsert,
@@ -90,19 +72,6 @@ typedef enum BTreeLeafTupleDeletedStatus
 	BTreeLeafTupleMovedPartitions = 2,
 	BTreeLeafTuplePKChanged = 3
 } BTreeLeafTupleDeletedStatus;
-
-typedef struct
-{
-	Pointer		data;
-	uint8		formatFlags;
-} OTuple;
-
-#define O_TUPLE_IS_NULL(tup) ((tup).data == NULL)
-#define O_TUPLE_SET_NULL(tup) \
-	do { \
-        (tup).data = NULL; \
-        (tup).formatFlags = 0; \
-    } while (false)
 
 typedef union
 {
