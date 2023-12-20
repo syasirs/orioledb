@@ -28,4 +28,10 @@ else
 fi
 cd ..
 
+# Which test processes still alive
+if [ -n "$status" ]; then
+    pgrep postgres | xargs -r ps -o cmd | cat
+    pgrep memcheck | xargs -r ps -o cmd | cat
+fi
+
 exit $status

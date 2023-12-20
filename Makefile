@@ -136,42 +136,42 @@ ISOLATIONCHECKS = bitmap_hist_scan \
 				  rll_subtrans \
 				  table_lock_test \
 				  uniq
-TESTGRESCHECKS_PART_1 = t/checkpointer_test.py \
-						t/eviction_bgwriter_test.py \
-						t/eviction_compression_test.py \
-						t/eviction_test.py \
-						t/file_operations_test.py \
-						t/files_test.py \
-						t/incomplete_split_test.py \
-						t/merge_test.py \
-						t/o_tables_test.py \
-						t/o_tables_2_test.py \
-						t/recovery_test.py \
-						t/recovery_opclass_test.py \
-						t/recovery_worker_test.py \
-						t/replication_test.py \
-						t/types_test.py \
-						t/undo_eviction_test.py \
-						t/toast_index_test.py
-TESTGRESCHECKS_PART_2 = t/checkpoint_concurrent_test.py \
-						t/checkpoint_eviction_test.py \
-						t/checkpoint_same_trx_test.py \
-						t/checkpoint_split1_test.py \
-						t/checkpoint_split2_test.py \
-						t/checkpoint_split3_test.py \
-						t/checkpoint_update_compress_test.py \
-						t/checkpoint_update_test.py \
-						t/ddl_test.py \
-						t/eviction_full_memory_test.py \
-						t/include_indices_test.py \
-						t/indices_build_test.py \
-						t/not_supported_yet_test.py \
-						t/parallel_test.py \
-						t/reindex_test.py \
-						t/s3_test.py \
-						t/schema_test.py \
-						t/trigger_test.py \
-						t/vacuum_test.py
+TESTGRESCHECKS_PART_1 = checkpointer_test.py \
+						eviction_bgwriter_test.py \
+						eviction_compression_test.py \
+						eviction_test.py \
+						file_operations_test.py \
+						files_test.py \
+						incomplete_split_test.py \
+						merge_test.py \
+						o_tables_test.py \
+						o_tables_2_test.py \
+						recovery_test.py \
+						recovery_opclass_test.py \
+						recovery_worker_test.py \
+						replication_test.py \
+						types_test.py \
+						undo_eviction_test.py \
+						toast_index_test.py
+TESTGRESCHECKS_PART_2 = checkpoint_concurrent_test.py \
+						checkpoint_eviction_test.py \
+						checkpoint_same_trx_test.py \
+						checkpoint_split1_test.py \
+						checkpoint_split2_test.py \
+						checkpoint_split3_test.py \
+						checkpoint_update_compress_test.py \
+						checkpoint_update_test.py \
+						ddl_test.py \
+						eviction_full_memory_test.py \
+						include_indices_test.py \
+						indices_build_test.py \
+						not_supported_yet_test.py \
+						parallel_test.py \
+						reindex_test.py \
+						s3_test.py \
+						schema_test.py \
+						trigger_test.py \
+						vacuum_test.py
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
@@ -204,7 +204,7 @@ isolationcheck: | install
 
 $(TESTGRESCHECKS_PART_1) $(TESTGRESCHECKS_PART_2): | install
 	$(with_temp_install) \
-	python3 -W ignore::DeprecationWarning -m unittest -v $@
+	unittest-parallel -t . -s t $(foreach pat,$(TESTGRESCHECKS_TEST_PATTERN),-k '*$(pat)') -f -v -p $@
 
 installcheck: regresscheck isolationcheck testgrescheck
 	echo "All checks are successful!"
@@ -229,7 +229,7 @@ isolationcheck: | submake-isolation submake-orioledb temp-install
 $(TESTGRESCHECKS_PART_1) $(TESTGRESCHECKS_PART_2): | submake-orioledb temp-install
 	PG_CONFIG="$(abs_top_builddir)/tmp_install$(bindir)/pg_config" \
 		$(with_temp_install) \
-		python3 -m unittest -v $@
+		unittest-parallel -t . -s t $(foreach pat,$(TESTGRESCHECKS_TEST_PATTERN),-k '*$(pat)') -f -v -p $@
 
 check: regresscheck isolationcheck testgrescheck
 	echo "All checks are successful!"

@@ -38,7 +38,7 @@ source ~/.bashrc
 
 ### Install python requirements
 ```bash
-pip3 install psycopg2 six testgres
+pip3 install psycopg2 six testgres unittest-parallel
 sudo pip3 install compiledb
 ```
 
@@ -128,7 +128,7 @@ exec zsh -l
 
 ### Install python requirements
 ```bash
-pip3 install psycopg2 six testgres
+pip3 install psycopg2 six testgres unittest-parallel
 sudo pip3 install compiledb
 ```
 
@@ -225,7 +225,7 @@ source ~/.bashrc
 
 ### Install python requirements
 ```bash
-pip3 install psycopg2 six testgres
+pip3 install psycopg2 six testgres unittest-parallel
 sudo pip3 install compiledb
 ```
 
