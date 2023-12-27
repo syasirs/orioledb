@@ -908,7 +908,7 @@ o_perform_checkpoint(XLogRecPtr redo_pos, int flags)
 
 		desc = get_sys_tree(sys_tree_num);
 
-		if (desc->storageType == BTreeStoragePersistence)
+		if (desc->storageType == BTreeStoragePersistence || desc->storageType == BTreeStorageUnlogged)
 		{
 			success = checkpoint_ix(flags, desc);
 			/* System trees can't be concurrently deleted */
@@ -1164,15 +1164,12 @@ checkpoint_temporary_tree(int flags, BTreeDescr *descr)
 	chkp_inc_changecount_after(checkpoint_state);
 }
 
-
 void
 o_after_checkpoint_cleanup_hook(XLogRecPtr checkPointRedo, int flags)
 {
-	/* called in StartupXLOG */
-	if (flags == 0)
-	{
-		o_tables_drop_all_temporary();
-	}
+	/* called at the end of StartupXLOG */
+	*was_in_recovery = flags == 0;
+
 	if (!(flags & (CHECKPOINT_IS_SHUTDOWN | CHECKPOINT_END_OF_RECOVERY)))
 	{
 		o_sys_caches_delete_by_lsn(checkPointRedo);
@@ -4252,7 +4249,7 @@ checkpoint_tables_callback(OIndexType type, ORelOids treeOids,
 		if (STOPEVENTS_ENABLED())
 			params = prepare_checkpoint_tree_start_params(td);
 		STOPEVENT(STOPEVENT_CHECKPOINT_INDEX_START, params);
-		if (td->storageType == BTreeStoragePersistence)
+		if (td->storageType == BTreeStoragePersistence || td->storageType == BTreeStorageUnlogged)
 		{
 			success = checkpoint_ix(tbl_arg->flags, td);
 

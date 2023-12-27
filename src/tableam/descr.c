@@ -201,8 +201,9 @@ o_btree_load_shmem_internal(BTreeDescr *desc, bool checkpoint)
 		sharedRootInfo = create_shared_root_info(desc->ppool, &key);
 		desc->rootInfo = sharedRootInfo->rootInfo;
 		Assert(desc->storageType == BTreeStoragePersistence ||
-			   desc->storageType == BTreeStorageTemporary);
-		if (desc->storageType == BTreeStoragePersistence)
+			   desc->storageType == BTreeStorageTemporary ||
+			   desc->storageType == BTreeStorageUnlogged);
+		if (desc->storageType == BTreeStoragePersistence || desc->storageType == BTreeStorageUnlogged)
 		{
 			checkpointable_tree_init(desc, true, &was_evicted);
 		}
@@ -259,7 +260,7 @@ o_btree_load_shmem_internal(BTreeDescr *desc, bool checkpoint)
 
 		desc->rootInfo = sharedRootInfo->rootInfo;
 
-		if (desc->storageType == BTreeStoragePersistence)
+		if (desc->storageType == BTreeStoragePersistence || desc->storageType == BTreeStorageUnlogged)
 		{
 			checkpointable_tree_init(desc, false, NULL);
 		}
@@ -323,7 +324,7 @@ o_btree_try_use_shmem(BTreeDescr *desc)
 
 		desc->rootInfo = shared->rootInfo;
 
-		if (desc->storageType == BTreeStoragePersistence)
+		if (desc->storageType == BTreeStoragePersistence || desc->storageType == BTreeStorageUnlogged)
 		{
 			checkpointable_tree_init(desc, false, NULL);
 		}
@@ -557,7 +558,7 @@ o_fill_tmp_table_descr(OTableDescr *descr, OTable *o_table)
 		indexDescr = palloc0(sizeof(OIndexDescr));
 		o_index_fill_descr(indexDescr, index, o_table);
 		index_btree_desc_init(&indexDescr->desc, indexDescr->compress,
-							  indexDescr->oids, index->indexType, index->temp_table, index->createOxid,
+							  indexDescr->oids, index->indexType, index->table_persistence, index->createOxid,
 							  indexDescr);
 		free_o_index(index);
 		descr->indices[cur_ix] = indexDescr;
@@ -568,7 +569,7 @@ o_fill_tmp_table_descr(OTableDescr *descr, OTable *o_table)
 	o_index_fill_descr(indexDescr, index, o_table);
 	index_btree_desc_init(&indexDescr->desc, indexDescr->compress,
 						  indexDescr->oids, index->indexType,
-						  index->temp_table, index->createOxid, indexDescr);
+						  index->table_persistence, index->createOxid, indexDescr);
 	free_o_index(index);
 	descr->toast = indexDescr;
 
@@ -900,7 +901,7 @@ get_index_descr(ORelOids ixOids, OIndexType ixType, bool miss_ok)
 	o_index_fill_descr(result, oIndex, NULL);
 	MemoryContextSwitchTo(mcxt);
 	index_btree_desc_init(&result->desc, result->compress, result->oids,
-						  oIndex->indexType, oIndex->temp_table, oIndex->createOxid, result);
+						  oIndex->indexType, oIndex->table_persistence, oIndex->createOxid, result);
 	free_o_index(oIndex);
 
 	return result;
@@ -925,7 +926,7 @@ recreate_index_descr(OIndexDescr *descr)
 	o_index_fill_descr(descr, oIndex, NULL);
 	MemoryContextSwitchTo(mcxt);
 	index_btree_desc_init(&descr->desc, descr->compress, descr->oids,
-						  oIndex->indexType, oIndex->temp_table, oIndex->createOxid, descr);
+						  oIndex->indexType, oIndex->table_persistence, oIndex->createOxid, descr);
 	descr->refcnt = refcnt;
 	free_o_index(oIndex);
 }
