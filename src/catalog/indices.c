@@ -1723,7 +1723,7 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 	buildstate.btleader = NULL;
 
 	/* Attempt to launch parallel worker scan when required */
-	if ((in_dedicated_recovery_worker || max_parallel_maintenance_workers > 0))
+	if ((in_dedicated_recovery_worker || max_parallel_maintenance_workers > 0) && !descr->indices[0]->primaryIsCtid)
 	{
 		index_tuples = (double *) palloc0(sizeof(double) * descr->nIndices);
 
