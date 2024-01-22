@@ -1719,6 +1719,7 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 	fileHeaders = (CheckpointFileHeader *) palloc(sizeof(CheckpointFileHeader) *
 												  (descr->nIndices + 1));
 	coordinate = (SortCoordinate *) palloc0(sizeof(SortCoordinate *) * (descr->nIndices + 1));
+	index_tuples = (double *) palloc0(sizeof(double) * descr->nIndices);
 
 	ctid = 0;
 
@@ -1727,8 +1728,6 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 	/* Attempt to launch parallel worker scan when required */
 	if ((in_dedicated_recovery_worker || max_parallel_maintenance_workers > 0) && !descr->indices[0]->primaryIsCtid)
 	{
-		index_tuples = (double *) palloc0(sizeof(double) * descr->nIndices);
-
 		btspool = (oIdxSpool *) palloc0(sizeof(oIdxSpool));
 		btspool->o_table = o_table;
 		btspool->descr = descr;
