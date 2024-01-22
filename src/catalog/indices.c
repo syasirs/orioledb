@@ -1096,7 +1096,6 @@ _o_index_leader_participate_as_worker(oIdxBuildState *buildstate)
 	leaderworker->descr = buildstate->spool->descr;
 	leaderworker->old_o_table = buildstate->spool->old_o_table;
 	leaderworker->old_descr = buildstate->spool->old_descr;
-	leaderworker->ctid = buildstate->spool->ctid;
 
 	/*
 	 * Might as well use reliable figure when doling out maintenance_work_mem
@@ -1589,7 +1588,7 @@ rebuild_indices_worker_sort(oIdxSpool *btspool, void *bt_shared, Sharedsort **sh
 													btspool->descr->indices[0],
 													work_mem, false, &(coordinate[nindices]));
 
-	rebuild_indices_worker_heap_scan(btspool->old_descr, btspool->descr, poscan, btspool->sortstates, false, &heaptuples, &indtuples, &btspool->ctid);
+	rebuild_indices_worker_heap_scan(btspool->old_descr, btspool->descr, poscan, btspool->sortstates, false, &heaptuples, &indtuples, NULL);
 
 	/* Execute this worker's part of the sort */
 	if (progress)
@@ -1671,6 +1670,7 @@ void rebuild_indices_worker_heap_scan(OTableDescr *old_descr, OTableDescr *descr
 			{
 				if (idx->primaryIsCtid)
 				{
+					Assert(ctid);
 					primarySlot->tts_tid.ip_posid = (OffsetNumber) (*ctid);
 					BlockIdSet(&primarySlot->tts_tid.ip_blkid,
 							   (uint32) (*ctid >> 16));
@@ -1726,14 +1726,14 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 	buildstate.btleader = NULL;
 
 	/* Attempt to launch parallel worker scan when required */
-	if ((in_dedicated_recovery_worker || max_parallel_maintenance_workers > 0) && !descr->indices[0]->primaryIsCtid)
+	if (0)
+//	if ((in_dedicated_recovery_worker || max_parallel_maintenance_workers > 0) && !descr->indices[0]->primaryIsCtid)
 	{
 		btspool = (oIdxSpool *) palloc0(sizeof(oIdxSpool));
 		btspool->o_table = o_table;
 		btspool->descr = descr;
 		btspool->old_o_table = old_o_table;
 		btspool->old_descr = old_descr;
-		btspool->ctid = ctid;
 
 		buildstate.worker_heap_sort_fn = &rebuild_indices_worker_sort;
 		buildstate.ix_num = InvalidIndexNumber;
@@ -1783,13 +1783,10 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 		heap_tuples = buildstate.btleader->btshared->reltuples;
 	}
 
-
+	o_set_syscache_hooks();
 	for (i = 0; i < descr->nIndices + 1; i++)
 	{
-
-		o_set_syscache_hooks();
 		tuplesort_performsort(sortstates[i]);
-		o_unset_syscache_hooks();
 
 		if (i < descr->nIndices) /* Indices sort states */
 		{
@@ -1806,6 +1803,8 @@ rebuild_indices(OTable *old_o_table, OTableDescr *old_descr,
 
 		tuplesort_end(sortstates[i]);
 	}
+	o_unset_syscache_hooks();
+
 	pfree(sortstates);
 
 	if (buildstate.btleader)

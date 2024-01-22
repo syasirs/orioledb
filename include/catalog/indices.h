@@ -50,7 +50,6 @@ typedef struct oIdxSpool
 	OTable	   *old_o_table;
 	OTableDescr *descr;
 	OTableDescr *old_descr;
-	uint64		ctid;
 	bool		isunique;
 
 } oIdxSpool;
