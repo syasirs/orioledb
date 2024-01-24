@@ -1580,13 +1580,13 @@ rebuild_indices_worker_sort(oIdxSpool *btspool, void *bt_shared, Sharedsort **sh
 
 	/* Begin "partial" tuplesorts for all indexes to be rebuilt*/
 	btspool->sortstates = palloc0(sizeof(Pointer) * (nIndices + 1));
-	for (i = 0; i < nindices; i++)
+	for (i = PrimaryIndexNumber; i < nIndices; i++)
 	{
 		btspool->sortstates[i] = tuplesort_begin_orioledb_index(btspool->descr->indices[i], work_mem, false, &(coordinate[i]));
 	}
-	btspool->sortstates[nindices] = tuplesort_begin_orioledb_toast(btspool->descr->toast,
+	btspool->sortstates[nIndices] = tuplesort_begin_orioledb_toast(btspool->descr->toast,
 													btspool->descr->indices[PrimaryIndexNumber],
-													work_mem, false, &(coordinate[nindices]));
+													work_mem, false, &(coordinate[nIndices]));
 
 	rebuild_indices_worker_heap_scan(btspool->old_descr, btspool->descr, poscan, btspool->sortstates, false, &heaptuples, &indtuples, NULL);
 
@@ -1594,12 +1594,10 @@ rebuild_indices_worker_sort(oIdxSpool *btspool, void *bt_shared, Sharedsort **sh
 	if (progress)
 		pgstat_progress_update_param(PROGRESS_CREATEIDX_SUBPHASE,
 									 PROGRESS_BTREE_PHASE_PERFORMSORT_1);
-	o_set_syscache_hooks();
 	for (i = PrimaryIndexNumber; i < nIndices + 1; i++)
 	{
 		tuplesort_performsort(btspool->sortstates[i]);
 	}
-	o_unset_syscache_hooks();
 
 	/*
 	 * Done.  Record ambuild statistics, and whether we encountered a broken
