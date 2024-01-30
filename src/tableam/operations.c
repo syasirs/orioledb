@@ -1694,9 +1694,9 @@ o_truncate_table(ORelOids oids)
 		o_tables_rel_lock_extended(&treeOids[i], AccessExclusiveLock, true);
 		cleanup_btree(treeOids[i].datoid, treeOids[i].relnode, true);
 		o_invalidate_oids(treeOids[i]);
-		if (is_recovery_process())
-			o_invalidate_descrs(treeOids[i].datoid, treeOids[i].reloid,
-								treeOids[i].relnode);
+//		if (is_recovery_process())
+//			o_invalidate_descrs(treeOids[i].datoid, treeOids[i].reloid,
+//								treeOids[i].relnode);
 		if (ORelOidsIsEqual(oids, treeOids[i]))
 			invalidatedTable = true;
 		o_tables_rel_unlock_extended(&treeOids[i], AccessExclusiveLock, false);
@@ -1707,8 +1707,8 @@ o_truncate_table(ORelOids oids)
 	{
 		cleanup_btree(oids.datoid, oids.relnode, true);
 		o_invalidate_oids(oids);
-		if (is_recovery_process())
-			o_invalidate_descrs(oids.datoid, oids.reloid, oids.relnode);
+//		if (is_recovery_process())
+//			o_invalidate_descrs(oids.datoid, oids.reloid, oids.relnode);
 	}
 
 	o_tables_rel_unlock(&oids, AccessExclusiveLock);
