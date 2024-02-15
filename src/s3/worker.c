@@ -73,7 +73,7 @@ register_s3worker(int num)
 {
 	BackgroundWorker worker;
 
-	s3_list_objects();
+	// s3_list_objects();
 
 	/* Set up background worker parameters */
 	memset(&worker, 0, sizeof(worker));
