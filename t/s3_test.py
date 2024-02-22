@@ -393,18 +393,15 @@ class S3Test(BaseTest):
 		node.safe_psql("CHECKPOINT;")
 		self.assertEqual([(1, ), (2, ), (3, ), (4, ), (5, )],
 		                 node.execute("SELECT * FROM o_test_1"))
-		node.stop(['--no-wait'])
-
-		new_temp_dir = mkdtemp(prefix=self.myName + '_tgsb_')
+		node.stop()
 
 		while self.client.list_objects(Bucket=self.bucket_name,
 		                               Prefix='wal/') == []:
 			pass
-		os.kill(archiver_pid, signal.SIGUSR2)
-		while node.status() == NodeStatus.Running:
-			pass
 
-		with testgres.get_new_node('test', base_dir=new_temp_dir) as new_node:
+		new_temp_dir = mkdtemp(prefix=self.myName + '_tgsb_')
+		self.replica = testgres.get_new_node('test', base_dir=new_temp_dir)
+		with self.replica as new_node:
 			self.loader.download(self.bucket_name, new_node.data_dir)
 			new_node.port = self.getBasePort() + 1
 			new_node.append_conf(port=new_node.port)
@@ -413,7 +410,6 @@ class S3Test(BaseTest):
 			self.assertEqual([(1, ), (2, ), (3, ), (4, ), (5, )],
 			                 new_node.execute("SELECT * FROM o_test_1"))
 			new_node.stop()
-			new_node.cleanup()
 
 
 class OrioledbS3Loader:
