@@ -45,6 +45,7 @@
 #include "utils/stopevent.h"
 #include "utils/ucm.h"
 
+#include "catalog/pg_database.h"
 #include "common/hashfn.h"
 #include "miscadmin.h"
 #include "pgstat.h"
@@ -1090,6 +1091,7 @@ o_perform_checkpoint(XLogRecPtr redo_pos, int flags)
 		 checkpoint_state->lastCheckpointNumber + 1);
 
 	o_set_syscache_hooks();
+	o_database_cache_set_database_encoding();
 
 	memset(&control, 0, sizeof(control));
 
