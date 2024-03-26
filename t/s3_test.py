@@ -334,3 +334,113 @@ class S3Test(S3BaseTest):
 			                 new_node.execute("SELECT * FROM o_test_1"))
 			new_node.stop()
 			new_node.cleanup()
+
+	def test_s3_no_control_file(self):
+		node = self.node
+		node.append_conf(f"""
+			orioledb.s3_mode = true
+			orioledb.s3_host = '{self.host}:{self.port}/{self.bucket_name}'
+			orioledb.s3_region = '{self.region}'
+			orioledb.s3_accesskey = '{self.access_key_id}'
+			orioledb.s3_secretkey = '{self.secret_access_key}'
+			orioledb.s3_cainfo = '{self.ssl_key[0]}'
+			orioledb.s3_num_workers = 3
+
+			archive_mode = on
+			archive_library = 'orioledb'
+		""")
+		node.append_conf(f"""
+			orioledb.recovery_pool_size = 1
+			orioledb.recovery_idx_pool_size = 1
+		""")
+		node.start()
+		node.safe_psql("""
+			CREATE EXTENSION orioledb;
+			CREATE TABLE o_test_1 (
+				val_1 int
+			) USING orioledb;
+			INSERT INTO o_test_1 SELECT * FROM generate_series(1, 5);
+		""")
+		self.assertEqual([(1, ), (2, ), (3, ), (4, ), (5, )],
+		                 node.execute("SELECT * FROM o_test_1"))
+		node.safe_psql("CHECKPOINT;")
+		node.safe_psql("""
+			INSERT INTO o_test_1 SELECT * FROM generate_series(11, 15);
+		""")
+		self.assertEqual([(1, ), (2, ), (3, ), (4, ), (5, ), (11, ), (12, ),
+		                  (13, ), (14, ), (15, )],
+		                 node.execute("SELECT * FROM o_test_1"))
+		print(self.last_checkpoint_number(self.bucket_name), flush=True)
+		print(node.execute("SELECT * FROM o_test_1"), flush=True)
+		node.safe_psql("CHECKPOINT;")
+		print(self.last_checkpoint_number(self.bucket_name), flush=True)
+		print(node.execute("SELECT * FROM o_test_1"), flush=True)
+		node.stop()
+		print(self.last_checkpoint_number(self.bucket_name), flush=True)
+
+		chkp_num = self.last_checkpoint_number(self.bucket_name)
+		control_file_path = os.path.join('data', str(chkp_num), 'orioledb_data/control')
+		self.client.delete_object(Bucket=self.bucket_name, Key=control_file_path)
+
+		print(self.last_checkpoint_number(self.bucket_name), flush=True)
+
+		new_temp_dir = mkdtemp(prefix=self.myName + '_tgsb_')
+		with testgres.get_new_node('test', base_dir=new_temp_dir) as new_node:
+			self.loader.download(self.bucket_name, new_node.data_dir, True,
+			                     new_node.pg_log_file)
+			new_node.port = self.getBasePort() + 1
+			new_node.append_conf(port=new_node.port)
+
+			new_node.start()
+			self.assertEqual([(1, ), (2, ), (3, ), (4, ), (5, )],
+			                 new_node.execute("SELECT * FROM o_test_1"))
+			new_node.stop()
+			new_node.cleanup()
+
+	def last_checkpoint_number(self, bucket_name):
+		paginator = self.client.get_paginator('list_objects_v2')
+
+		numbers = []
+		for page in paginator.paginate(Bucket=bucket_name,
+		                               Prefix='data/',
+		                               Delimiter='/'):
+			if 'CommonPrefixes' in page:
+				for prefix in page['CommonPrefixes']:
+					prefix_key = prefix['Prefix'].rstrip('/')
+					subdirectory = prefix_key.split('/')[-1]
+					try:
+						number = int(subdirectory)
+						numbers += [number]
+					except ValueError:
+						pass
+
+		numbers = sorted(numbers)
+
+		found = False
+		chkp_list_index = len(numbers) - 1
+
+		last_chkp_data_dir = os.path.join('data',
+		                                  str(numbers[chkp_list_index]))
+
+		while not found and chkp_list_index >= 0:
+			try:
+				self.client.head_object(
+				    Bucket=bucket_name,
+				    Key=f'{last_chkp_data_dir}/global/pg_control')
+				self.client.head_object(
+				    Bucket=bucket_name,
+				    Key=f'{last_chkp_data_dir}/orioledb_data/control')
+				found = True
+			except ClientError as e:
+				if e.response['Error']['Code'] == "404":
+					chkp_list_index -= 1
+					if chkp_list_index >= 0:
+						last_chkp_data_dir = os.path.join(
+						    'data', str(numbers[chkp_list_index]))
+				else:
+					raise
+
+		if chkp_list_index < 0:
+			raise Exception("Failed to find valid checkpoint in s3 bucket")
+
+		return numbers[chkp_list_index]
